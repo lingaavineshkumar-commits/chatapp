@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Login</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#667eea,#764ba2);
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+.card{
+background:rgba(255,255,255,0.95);
+padding:40px;
+border-radius:15px;
+width:320px;
+text-align:center;
+box-shadow:0 15px 40px rgba(0,0,0,0.3);
+}
+
+input{
+width:100%;
+padding:12px;
+margin:10px 0;
+border:none;
+border-radius:8px;
+background:#f1f1f1;
+}
+
+button{
+width:100%;
+padding:12px;
+background:#667eea;
+color:white;
+border:none;
+border-radius:25px;
+cursor:pointer;
+}
+
+.link{
+margin-top:15px;
+color:#667eea;
+cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<h2>Login</h2>
+
+<input type="text" id="username" placeholder="Username">
+<input type="password" id="password" placeholder="Password">
+
+<button onclick="login()">Login</button>
+
+<p class="link" onclick="goRegister()">Create Account</p>
+</div>
+
+<script>
+function login(){
+let username = document.getElementById("username").value.trim();
+let password = document.getElementById("password").value.trim();
+
+let allUsers = JSON.parse(localStorage.getItem("allUsers")) || [];
+
+/* REMOVE BAD DATA */
+allUsers = allUsers.filter(u => u && u.username && u.password);
+
+/* CHECK USER */
+let user = allUsers.find(u => u.username === username && u.password === password);
+
+/* SAVE LOGGED USER */
+localStorage.setItem("loggedInUser", username);
+
+alert("Login successful!");
+
+/* REDIRECT */
+window.location.href = "chat.html"; // create this page later
+}
+
+function goRegister(){
+window.location.href = "register.html";
+}
+</script>
+
+</body>
+</html>

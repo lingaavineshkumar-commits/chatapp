@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chat</title>
+
+<style>
+/* (NO CHANGES — your original CSS kept) */
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#667eea,#764ba2);
+height:100vh;
+display:flex;
+flex-direction:column;
+}
+
+.header{
+background:rgba(0,0,0,0.3);
+color:white;
+padding:15px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.header button{
+background:white;
+color:#667eea;
+border:none;
+padding:8px 15px;
+border-radius:20px;
+cursor:pointer;
+margin-left:5px;
+}
+
+.notify{position:relative;}
+.notify span{
+position:absolute;
+top:-5px;
+right:-5px;
+background:red;
+color:white;
+border-radius:50%;
+padding:3px 7px;
+font-size:12px;
+}
+
+.blink{animation:blink 1s infinite;}
+@keyframes blink{
+0%{background:white;}
+50%{background:red;color:white;}
+100%{background:white;}
+}
+
+.main{flex:1;display:flex;}
+
+.left{
+width:220px;
+margin:10px;
+background:rgba(255,255,255,0.2);
+border-radius:15px;
+overflow-y:auto;
+}
+
+.menu-title{
+padding:10px;
+color:white;
+text-align:center;
+font-weight:bold;
+border-bottom:1px solid rgba(255,255,255,0.3);
+}
+
+.friend-item{
+padding:12px;
+color:white;
+cursor:pointer;
+border-bottom:1px solid rgba(255,255,255,0.2);
+}
+
+.friend-item:hover{
+background:rgba(255,255,255,0.2);
+}
+
+.active{
+background:white;
+color:#667eea;
+font-weight:bold;
+}
+
+.right{
+flex:1;
+margin:10px;
+background:white;
+border-radius:15px;
+display:flex;
+flex-direction:column;
+}
+
+.chat-box{
+flex:1;
+padding:10px;
+overflow-y:auto;
+}
+
+.message{
+padding:8px;
+margin:5px;
+border-radius:10px;
+width:max-content;
+max-width:70%;
+}
+
+.sender{
+font-size:11px;
+font-weight:bold;
+display:block;
+margin-bottom:3px;
+opacity:0.7;
+}
+
+.time{
+font-size:10px;
+display:block;
+margin-top:3px;
+text-align:right;
+opacity:0.7;
+}
+
+.input-area{
+display:flex;
+padding:10px;
+gap:10px;
+}
+
+.input-area input{
+flex:1;
+padding:12px;
+border-radius:25px;
+border:1px solid #ccc;
+outline:none;
+}
+
+.input-area button{
+padding:10px 20px;
+border:none;
+background:#667eea;
+color:white;
+border-radius:25px;
+cursor:pointer;
+}
+
+.popup{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.5);
+display:none;
+justify-content:center;
+align-items:center;
+}
+
+.popup-content{
+background:white;
+padding:20px;
+border-radius:10px;
+width:300px;
+}
+
+.result-item{
+padding:10px;
+border-bottom:1px solid #ccc;
+cursor:pointer;
+}
+
+.clear-btn{
+background:red;
+color:white;
+border:none;
+padding:5px 10px;
+border-radius:10px;
+cursor:pointer;
+float:right;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+<span id="user"></span>
+
+<div>
+<button onclick="openRequest()">Request</button>
+
+<button id="notifyBtn" class="notify" onclick="openIncoming()">
+🔔 <span id="count">0</span>
+</button>
+
+<button onclick="logout()">Logout</button>
+</div>
+</div>
+
+<div class="main">
+
+<div class="left">
+<div class="menu-title">Friends</div>
+<div id="friendsListLeft"></div>
+</div>
+
+<div class="right">
+<div class="chat-box" id="chatBox"></div>
+
+<div class="input-area">
+<input id="msg" placeholder="Type message...">
+<button onclick="send()">Send</button>
+</div>
+</div>
+
+</div>
+
+<!-- SEARCH -->
+<div class="popup" id="requestPopup">
+<div class="popup-content">
+<h3>Search User</h3>
+<input id="searchInput">
+<button onclick="searchUser()">Search</button>
+<div id="searchResult"></div>
+<div id="invalidMsg"></div>
+<button onclick="closeRequest()">Close</button>
+</div>
+</div>
+
+<!-- INCOMING -->
+<div class="popup" id="incomingPopup">
+<div class="popup-content">
+<h3>Incoming Requests</h3>
+<div id="incomingList"></div>
+<button onclick="closeIncoming()">Close</button>
+</div>
+</div>
+
+<script>
+let currentUser = localStorage.getItem("loggedInUser");
+
+if(!currentUser){
+alert("Login first");
+location.href="login.html";
+}
+
+document.getElementById("user").innerText = "Welcome " + currentUser;
+
+let allUsers = JSON.parse(localStorage.getItem("allUsers")) || [];
+let requests = JSON.parse(localStorage.getItem("requests")) || {};
+let friends = JSON.parse(localStorage.getItem("friends")) || {};
+let messages = JSON.parse(localStorage.getItem("messages")) || {};
+
+if(!requests[currentUser]) requests[currentUser] = [];
+if(!friends[currentUser]) friends[currentUser] = [];
+
+localStorage.setItem("requests", JSON.stringify(requests));
+localStorage.setItem("friends", JSON.stringify(friends));
+
+let current = "";
+
+/* ✅ FIXED CHAT KEY (ONLY IMPORTANT CHANGE) */
+function getChatKey(u1,u2){
+return "chat_" + [u1,u2].sort().join("__");
+}
+
+function loadFriends(){
+let list = friends[currentUser] || [];
+friendsListLeft.innerHTML="";
+
+list.forEach(f=>{
+let div=document.createElement("div");
+div.className="friend-item";
+div.innerText=f;
+
+div.onclick=()=>{
+document.querySelectorAll(".friend-item").forEach(x=>x.classList.remove("active"));
+div.classList.add("active");
+selectFriend(f);
+};
+
+friendsListLeft.appendChild(div);
+});
+}
+
+loadFriends();
+
+function selectFriend(f){
+current = f;
+loadMessages();
+}
+
+function formatTime(ts){
+let d = new Date(ts);
+let h = d.getHours();
+let m = d.getMinutes();
+let ampm = h >= 12 ? "PM" : "AM";
+
+h = h % 12 || 12;
+m = m < 10 ? "0"+m : m;
+
+return h + ":" + m + " " + ampm;
+}
+
+function loadMessages(){
+if(current==="") return;
+
+let key = getChatKey(currentUser, current);
+let msgs = messages[key] || [];
+
+chatBox.innerHTML = "<b>Chat with "+current+"</b> <button class='clear-btn' onclick='clearChat()'>Clear</button><hr>";
+
+msgs.forEach(m=>{
+let div=document.createElement("div");
+div.className="message";
+
+if(m.from === currentUser){
+div.style.background="#667eea";
+div.style.color="white";
+div.style.marginLeft="auto";
+div.innerHTML =
+"<span class='sender'>You</span>" +
+m.text +
+"<span class='time'>" + formatTime(m.time) + "</span>";
+}else{
+div.style.background="#ccc";
+div.style.color="black";
+div.style.marginRight="auto";
+div.innerHTML =
+"<span class='sender'>" + m.from + "</span>" +
+m.text +
+"<span class='time'>" + formatTime(m.time) + "</span>";
+}
+
+chatBox.appendChild(div);
+});
+
+chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function send(){
+let text = msg.value.trim();
+
+if(text==="" || current==="") return;
+
+let key = getChatKey(currentUser, current);
+
+if(!messages[key]) messages[key] = [];
+
+messages[key].push({
+from: currentUser,
+to: current,
+text: text,
+time: Date.now()
+});
+
+localStorage.setItem("messages", JSON.stringify(messages));
+
+msg.value="";
+loadMessages();
+}
+
+function clearChat(){
+if(current==="") return;
+
+let key = getChatKey(currentUser, current);
+
+if(confirm("Clear this chat?")){
+messages[key] = [];
+localStorage.setItem("messages", JSON.stringify(messages));
+loadMessages();
+}
+}
+
+/* (NO OTHER CHANGES BELOW) */
+
+function searchUser(){
+let value = searchInput.value.trim().toLowerCase();
+searchResult.innerHTML="";
+invalidMsg.innerHTML="";
+
+let found = allUsers.filter(u =>
+u.username.toLowerCase() === value &&
+u.username !== currentUser
+);
+
+if(found.length === 0){
+invalidMsg.innerText="❌ User not found";
+return;
+}
+
+found.forEach(u=>{
+let div=document.createElement("div");
+div.className="result-item";
+div.innerText=u.username;
+div.onclick=()=>sendRequest(u.username);
+searchResult.appendChild(div);
+});
+}
+
+function sendRequest(friend){
+let requests = JSON.parse(localStorage.getItem("requests")) || {};
+
+if(!requests[friend]) requests[friend]=[];
+
+let already = requests[friend].some(r => r.from === currentUser);
+
+if(already){
+alert("Already requested");
+return;
+}
+
+requests[friend].push({ from:currentUser, status:"pending" });
+
+localStorage.setItem("requests",JSON.stringify(requests));
+alert("✅ Request sent");
+}
+
+function updateNotification(){
+let requests = JSON.parse(localStorage.getItem("requests")) || {};
+let list = requests[currentUser] || [];
+
+let pending = list.filter(r=>r.status==="pending");
+
+count.innerText = pending.length;
+
+if(pending.length>0){
+notifyBtn.classList.add("blink");
+}else{
+notifyBtn.classList.remove("blink");
+}
+}
+
+function openIncoming(){
+let requests = JSON.parse(localStorage.getItem("requests")) || {};
+
+incomingPopup.style.display="flex";
+incomingList.innerHTML="";
+
+(requests[currentUser] || []).forEach((r,i)=>{
+if(r.status==="pending"){
+let div=document.createElement("div");
+div.className="result-item";
+div.innerHTML = r.from +
+" <button onclick='accept("+i+")'>✔</button>" +
+" <button onclick='reject("+i+")'>❌</button>";
+incomingList.appendChild(div);
+}
+});
+}
+
+function accept(i){
+let requests = JSON.parse(localStorage.getItem("requests")) || {};
+let friends = JSON.parse(localStorage.getItem("friends")) || {};
+
+let u = requests[currentUser][i].from;
+
+if(!friends[currentUser]) friends[currentUser]=[];
+if(!friends[u]) friends[u]=[];
+
+if(!friends[currentUser].includes(u)){
+friends[currentUser].push(u);
+}
+if(!friends[u].includes(currentUser)){
+friends[u].push(currentUser);
+}
+
+requests[currentUser].splice(i,1);
+
+localStorage.setItem("requests",JSON.stringify(requests));
+localStorage.setItem("friends",JSON.stringify(friends));
+
+loadFriends();
+updateNotification();
+openIncoming();
+}
+
+function reject(i){
+let requests = JSON.parse(localStorage.getItem("requests")) || {};
+
+requests[currentUser].splice(i,1);
+
+localStorage.setItem("requests",JSON.stringify(requests));
+
+updateNotification();
+openIncoming();
+}
+
+function openRequest(){ requestPopup.style.display="flex"; }
+function closeRequest(){ requestPopup.style.display="none"; }
+function closeIncoming(){ incomingPopup.style.display="none"; }
+
+function logout(){ location.href="login.html"; }
+
+setInterval(()=>{
+updateNotification();
+loadMessages();
+},1000);
+</script>
+
+</body>
+</html>
