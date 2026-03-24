@@ -246,7 +246,7 @@ let currentUser = localStorage.getItem("loggedInUser");
 
 if(!currentUser){
 alert("Login first");
-location.href="login.html";
+location.href="index.html";
 }
 
 document.getElementById("user").innerText = "Welcome " + currentUser;
@@ -495,7 +495,7 @@ function openRequest(){ requestPopup.style.display="flex"; }
 function closeRequest(){ requestPopup.style.display="none"; }
 function closeIncoming(){ incomingPopup.style.display="none"; }
 
-function logout(){ location.href="login.html"; }
+function logout(){ location.href="index.html"; }
 
 setInterval(()=>{
 updateNotification();
